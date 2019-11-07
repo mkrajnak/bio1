@@ -51,8 +51,8 @@ def extract_bv(image):
 	return blood_vessels
 
 if __name__ == "__main__":
-	pathFolder = "."
-	filesArray = [x for x in os.listdir(pathFolder) if os.path.isfile(os.path.join(pathFolder,x))]
+	pathFolder = '.'
+	filesArray = [x for x in os.listdir(pathFolder) if 'jpg' in x]
 	destinationFolder = "results/"
 	if not os.path.exists(destinationFolder):
 		os.mkdir(destinationFolder)
