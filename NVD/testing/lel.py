@@ -77,47 +77,57 @@ def get_min_circle(cnt):
         return (int(x),int(y)), int(radius * RADIUS_MULTIPLIER)
 
 
+''' kernel wrapper '''
+def get_kernel(params):
+    return cv2.getStructuringElement(cv2.MORPH_ELLIPSE, params)
+
+''' applying filter to idetify so only vessels should be left '''
+def filter_step(img, kernel_param):
+    open = cv2.morphologyEx(
+        img, cv2.MORPH_OPEN, get_kernel(kernel_param), iterations=1)
+    return cv2.morphologyEx(
+        open, cv2.MORPH_CLOSE, get_kernel(kernel_param), iterations=1)
+
+
+'''
+    blood vessels segmentation algorithm, forked from
+    https://github.com/getsanjeev/retina-features
+'''
 def get_vessels(image):
-	b,green_fundus,r = cv2.split(image)
-	clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-	contrast_enhanced_green_fundus = clahe.apply(green_fundus)
+    _, green, _ = cv2.split(image)
+    # histogram equalisation
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+    enhanced = contrast_enhanced_green = clahe.apply(green)
+    # applying alternate sequential filtering (3 times closing opening)
+    for kernel in [(5,5), (11, 11),(23, 23)]:
+        enhanced = filter_step(enhanced, kernel)
 
-	# applying alternate sequential filtering (3 times closing opening)
-	r1 = cv2.morphologyEx(contrast_enhanced_green_fundus, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(5,5)), iterations = 1)
-	R1 = cv2.morphologyEx(r1, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(5,5)), iterations = 1)
-	r2 = cv2.morphologyEx(R1, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(11,11)), iterations = 1)
-	R2 = cv2.morphologyEx(r2, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(11,11)), iterations = 1)
-	r3 = cv2.morphologyEx(R2, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(23,23)), iterations = 1)
-	R3 = cv2.morphologyEx(r3, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(23,23)), iterations = 1)
-	f4 = cv2.subtract(R3,contrast_enhanced_green_fundus)
-	f5 = clahe.apply(f4)
-	# cv2.imwrite(destinationFolder+file_name_no_extension+"_f5.png", f5)
+    final = clahe.apply(cv2.subtract(enhanced, contrast_enhanced_green))
 
-	# removing very small contours through area parameter noise removal
-	ret,f6 = cv2.threshold(f5,15,255,cv2.THRESH_BINARY)
-	mask = np.ones(f5.shape[:2], dtype="uint8") * 255
-	contours, hierarchy = cv2.findContours(f6.copy(),cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
-	for cnt in contours:
-		if cv2.contourArea(cnt) <= 200:
-			cv2.drawContours(mask, [cnt], -1, 0, -1)
-	im = cv2.bitwise_and(f5, f5, mask=mask)
-	ret,fin = cv2.threshold(im,15,255,cv2.THRESH_BINARY_INV)
-	newfin = cv2.erode(fin, cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(3,3)), iterations=1)
-	# removing blobs of unwanted bigger chunks taking in consideration they are not straight lines like blood
-	#vessels and also in an interval of area
-	fundus_eroded = cv2.bitwise_not(newfin)
-	# cv2.imwrite(destinationFolder+file_name_no_extension+"_newfin.png", f5)
-	xmask = np.ones(image.shape[:2], dtype="uint8") * 255
-	xcontours, xhierarchy = cv2.findContours(fundus_eroded.copy(),cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
-	for cnt in xcontours:
-		shape = "unidentified"
-		peri = cv2.arcLength(cnt, True)
-		approx = cv2.approxPolyDP(cnt, 0.04 * peri, False)
-		if cv2.contourArea(cnt) <= 1500:
-			 cv2.drawContours(xmask, [cnt], -1, 0, -1)
+    # removing very small contours through area parameter noise removal
+    ret, f6 = cv2.threshold(final,15,255,cv2.THRESH_BINARY)
+    mask = np.ones(final.shape[:2], dtype="uint8") * 255
+    contours, hierarchy = cv2.findContours(f6.copy(),cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
+    for cnt in contours:
+    	if cv2.contourArea(cnt) <= 200:
+    		cv2.drawContours(mask, [cnt], -1, 0, -1)
+    im = cv2.bitwise_and(final, final, mask=mask)
+    ret,fin = cv2.threshold(im,15,255,cv2.THRESH_BINARY_INV)
+    newfin = cv2.erode(fin, cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(3,3)), iterations=1)
+    # removing blobs of unwanted bigger chunks taking in consideration they are not straight lines like blood
+    #vessels and also in an interval of area
+    fundus_eroded = cv2.bitwise_not(newfin)
+    # cv2.imwrite(destinationFolder+file_name_no_extension+"_newfin.png", f5)
+    xmask = np.ones(image.shape[:2], dtype="uint8") * 255
+    xcontours, xhierarchy = cv2.findContours(fundus_eroded.copy(),cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
+    for cnt in xcontours:
+    	shape = "unidentified"
+    	peri = cv2.arcLength(cnt, True)
+    	approx = cv2.approxPolyDP(cnt, 0.04 * peri, False)
+    	if cv2.contourArea(cnt) <= 1500:
+    		 cv2.drawContours(xmask, [cnt], -1, 0, -1)
 
-	return cv2.bitwise_and(fundus_eroded,fundus_eroded,mask=xmask)
-
+    return cv2.bitwise_and(fundus_eroded,fundus_eroded,mask=xmask)
 
 
 if __name__ == "__main__":
@@ -137,7 +147,7 @@ if __name__ == "__main__":
         vessels = get_vessels(img)
         mask = np.zeros(vessels.shape, np.uint8)
         cv2.circle(mask,center,radius,(255,255,255),-1)
-        vessels = cv2.bitwise_and(vessels,vessels,mask=mask)
+        vessels = cv2.bitwise_and(vessels, vessels, mask=mask)
 
         rectX = center[0] - radius
         rectY = center[1] - radius
