@@ -3,6 +3,9 @@ import numpy as np
 import os
 import csv
 
+destinationFolder = "results/"
+pathFolder = '.'
+
 
 def extract_bv(image):
 	b,green_fundus,r = cv2.split(image)
@@ -18,6 +21,7 @@ def extract_bv(image):
 	R3 = cv2.morphologyEx(r3, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(23,23)), iterations = 1)
 	f4 = cv2.subtract(R3,contrast_enhanced_green_fundus)
 	f5 = clahe.apply(f4)
+	cv2.imwrite(destinationFolder+file_name_no_extension+"_f5.png", f5)
 
 	# removing very small contours through area parameter noise removal
 	ret,f6 = cv2.threshold(f5,15,255,cv2.THRESH_BINARY)
@@ -29,31 +33,25 @@ def extract_bv(image):
 	im = cv2.bitwise_and(f5, f5, mask=mask)
 	ret,fin = cv2.threshold(im,15,255,cv2.THRESH_BINARY_INV)
 	newfin = cv2.erode(fin, cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(3,3)), iterations=1)
-
 	# removing blobs of unwanted bigger chunks taking in consideration they are not straight lines like blood
 	#vessels and also in an interval of area
 	fundus_eroded = cv2.bitwise_not(newfin)
+	cv2.imwrite(destinationFolder+file_name_no_extension+"_newfin.png", f5)
 	xmask = np.ones(fundus.shape[:2], dtype="uint8") * 255
 	xcontours, xhierarchy = cv2.findContours(fundus_eroded.copy(),cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
 	for cnt in xcontours:
 		shape = "unidentified"
 		peri = cv2.arcLength(cnt, True)
 		approx = cv2.approxPolyDP(cnt, 0.04 * peri, False)
-		if len(approx) > 4 and cv2.contourArea(cnt) <= 3000 and cv2.contourArea(cnt) >= 100:
-			shape = "circle"
-		else:
-			shape = "veins"
-		if(shape=="circle"):
-			cv2.drawContours(xmask, [cnt], -1, 0, -1)
+		if cv2.contourArea(cnt) <= 1500:
+			 cv2.drawContours(xmask, [cnt], -1, 0, -1)
 
 	finimage = cv2.bitwise_and(fundus_eroded,fundus_eroded,mask=xmask)
 	blood_vessels = cv2.bitwise_not(finimage)
 	return blood_vessels
 
 if __name__ == "__main__":
-	pathFolder = '.'
 	filesArray = [x for x in os.listdir(pathFolder) if 'jpg' in x]
-	destinationFolder = "results/"
 	if not os.path.exists(destinationFolder):
 		os.mkdir(destinationFolder)
 	for file_name in filesArray:

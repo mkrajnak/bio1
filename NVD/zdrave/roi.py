@@ -1,5 +1,5 @@
 import numpy as np
-import scipy as sp 
+import scipy as sp
 import scipy.ndimage as ndimage
 import math
 from skimage import exposure,filters
@@ -51,7 +51,7 @@ def preprocess(img):
 	gray = cv2.addWeighted(gray, 1.5, gray_blur, -0.5, 0, gray)
 	kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(31,31))
 	gray = ndimage.grey_closing(gray,structure=kernel)
-	gray = cv2.equalizeHist(gray)	
+	gray = cv2.equalizeHist(gray)
 	#gray = cv2.GaussianBlur(gray, (5,5), 0)
 	#gray = cv2.medianBlur(gray,9)
 
@@ -74,21 +74,20 @@ def getROI(image):
 	g = cv2.GaussianBlur(g,(15,15),0)
 	kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(15,15))
 	g = ndimage.grey_opening(g,structure=kernel)
-    import ipdb; ipdb.set_trace()	
 	(minVal, maxVal, minLoc, maxLoc) = cv2.minMaxLoc(g)
 
 	x0 = int(maxLoc[0])-110
 	y0 = int(maxLoc[1])-110
 	x1 = int(maxLoc[0])+110
 	y1 = int(maxLoc[1])+110
-	
+
 	return image[y0:y1,x0:x1]
 
 
 def getValue(img):
 	shapeRow = img.shape[0]
 	shapeCol = img.shape[1]
-	x = 0 
+	x = 0
 	y = 0
 	acu = 0
 	maxloc = []
@@ -97,7 +96,7 @@ def getValue(img):
 			(minVal, maxVal, minLoc, maxLoc) = cv2.minMaxLoc(img[i-15:j-15,i+15:j+15])
 			value = maxVal
 			if value > acu:
-				acu = value 
+				acu = value
 				maxloc = maxLoc
 	return maxloc
 
@@ -140,7 +139,7 @@ def canny(img,sigma):
 	sigma = sigma
 	lower = int(max(0, (1.0 - sigma) * v))
 	upper = int(min(255, (1.0 + sigma) * v))
-	edged = cv2.Canny(img, lower, upper)	
+	edged = cv2.Canny(img, lower, upper)
 	return edged
 
 def hough(edged,limm,limM):
@@ -186,7 +185,7 @@ cv2.imshow('Region of Interest ',roi)
 
 ############################
 
-while(1):     
+while(1):
 	k = cv2.waitKey(37)
 	if k == 37:
 		break
