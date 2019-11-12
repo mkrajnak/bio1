@@ -61,7 +61,7 @@ def get_disc_contours(i):
     return img, get_contours(thresh)
 
 
-'''calculate the area of all contours and return the biggest one (disc)'''
+''' calculate the area of all contours and return the biggest one (disc)'''
 def get_biggest_contour(contours):
     _, contour = max(
         [(cv2.contourArea(x), x) for x in contours], key=lambda x: x[0])
@@ -121,7 +121,6 @@ def get_vessels(image):
     # applying alternate sequential filtering (3 times closing opening)
     for kernel in [(5,5), (11, 11),(23, 23)]:
         enhanced = filter_step(enhanced, kernel)
-
     final = clahe.apply(cv2.subtract(enhanced, contrast_enhanced_green))
     # removing very small contours through area parameter noise removal
     _, f6 = cv2.threshold(final, 15, 255, cv2.THRESH_BINARY)
@@ -129,19 +128,17 @@ def get_vessels(image):
     xmask = mask = np.ones(final.shape[:2], dtype="uint8") * 255
     # drawing contours on the mask
     for cnt in get_contours(f6):
-    	if cv2.contourArea(cnt) <= 200:
+    	if cv2.contourArea(cnt) <= 50:
     		cv2.drawContours(mask, [cnt], -1, 0, -1)
     # creating image with drawn masks
     im = cv2.bitwise_and(final, final, mask=mask)
     _, fin = cv2.threshold(im, 15, 255, cv2.THRESH_BINARY_INV)
     newfin = cv2.erode(fin, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3,3)), iterations=1)
     fundus_eroded = cv2.bitwise_not(newfin)
-    
     # removing smaller area which are probably not vessels
     for cnt in get_contours(fundus_eroded.copy()):
     	if cv2.contourArea(cnt) <= 1500:
             cv2.drawContours(xmask, [cnt], -1, 0, -1)
-
     return cv2.bitwise_and(fundus_eroded, fundus_eroded, mask=xmask)
 
 
@@ -205,6 +202,14 @@ if __name__ == "__main__":
         cv2.imwrite(f'results/{i}_radius.jpg', vessels)
         # get % of pixel ratio difference
         ratio = get_ratio(vessels)
+        mask = np.zeros(vessels.shape, np.uint8)
+        for cnt in get_contours(vessels):
+    	    if cv2.contourArea(cnt) <= 50:
+                print('lel')
+                cv2.drawContours(mask, [cnt], -1, 0, -1)
+
+        vessels = cv2.bitwise_and(vessels, vessels, mask=mask)
+
         if ratio == 100:
             debug_print('No veins on disc detected, skipping')
             add_xml_subElement(child, 'error', 'cannot detect disc for img, skipping')
