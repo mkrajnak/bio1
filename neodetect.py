@@ -12,7 +12,7 @@ import sys
 
 # multiply the disc area to cover area around the disc
 RADIUS_MULTIPLIER = 1.2
-MAX_DISC_RADIUS = 500
+MAX_DISC_RADIUS = 300
 DEBUG = False
 
 
